@@ -1,30 +1,73 @@
 #include <iostream>
 #include <string>
+#include <conio.h>
 #include <stack>
 
 using namespace std;
 
 const int MAX_PRODUCTS = 100;
+int lastEditedIndex = -1;
 
+
+enum states
+{
+    added,
+    deleleted,
+    edited,
+    idle
+};
+states currentState;
 struct Product {
     string name;
     int id;
     int amount;
     double price;
-    bool isDeleted;
 };
 Product products[MAX_PRODUCTS];
 int numProducts = 0;
+class Stack
+{
+    Product data[MAX_PRODUCTS];
+    int topIndex;
+public:
+    Stack() : topIndex(-1) {}
+    void push(const Product& p) {
+        if (topIndex == MAX_PRODUCTS - 1) {
+            cout << "Stack is full" << endl;
+            return;
+        }
+        topIndex++;
+        data[topIndex] = p;
+    }
+    Product pop() {
+        if (topIndex == -1) {
+            cout << "Stack is empty" << endl;
+            return Product();
+        }
+        return data[topIndex];
+        topIndex--;
+    }
+    Product top() const {
+        if (topIndex == -1) {
+            cout << "Stack is empty" << endl;
+            return { "", 0, 00, 0 };
+        }
+        return data[topIndex];
+    }
+    bool empty() const {
+        return topIndex == -1;
+    }
+};
+Stack undoStack;
 
 int findProductIndex(const string& productName) {
     for (int i = 0; i < numProducts; i++) {
-        if (products[i].name == productName && !products[i].isDeleted) {
+        if (products[i].name == productName) {
             return i;
         }
     }
     return -1;
 }
-
 void addProduct(const string& productName, int productId, int productAmount, double productPrice) {
     if (numProducts >= MAX_PRODUCTS) {
         cout << "Maximum number of products reached." << endl;
@@ -36,14 +79,12 @@ void addProduct(const string& productName, int productId, int productAmount, dou
     newProduct.id = productId;
     newProduct.amount = productAmount;
     newProduct.price = productPrice;
-    newProduct.isDeleted = false;
-
+    undoStack.push(newProduct);
     products[numProducts] = newProduct;
     numProducts++;
 
     cout << "Product added successfully." << endl;
 }
-
 void clearConsole()
 {
 #ifdef _WIN32
@@ -52,7 +93,6 @@ void clearConsole()
     system("clear");
 #endif
 }
-
 void deleteProduct(const string& productName) {
     int index = findProductIndex(productName);
     if (index == -1) {
@@ -61,8 +101,7 @@ void deleteProduct(const string& productName) {
     }
 
     Product deletedProduct = products[index];
-    deletedProduct.isDeleted = true;
-
+    undoStack.push(deletedProduct);
     for (int i = index; i < numProducts - 1; i++) {
         products[i] = products[i + 1];
     }
@@ -70,7 +109,6 @@ void deleteProduct(const string& productName) {
     numProducts--;
     cout << "Product deleted successfully." << endl;
 }
-
 void editProduct(const string& productName) {
     int index = findProductIndex(productName);
     if (index == -1) {
@@ -79,6 +117,8 @@ void editProduct(const string& productName) {
     }
 
     Product editedProduct = products[index];
+    lastEditedIndex = index;
+    undoStack.push(editedProduct);   
     cout << "Enter new product name: ";
     cin >> editedProduct.name;
     cout << "Enter new product ID: ";
@@ -91,7 +131,6 @@ void editProduct(const string& productName) {
     cout << "Product edited successfully." << endl;
     
 }
-
 void sellProduct(const string& name) 
 {
     int index = findProductIndex(name);
@@ -118,6 +157,30 @@ void buyProduct(const string& name) {
         cout << "Product not found" << endl;
     }
 }
+void undoAction()
+{
+    if (currentState == states::deleleted)
+    {
+        cout << "Deletion Undone!";
+        products[++numProducts] = undoStack.pop();
+    }
+    else if (currentState == states::edited)
+    {
+        cout << "Edit Undone!";
+        if (lastEditedIndex >= 0 && lastEditedIndex < numProducts) {
+            products[lastEditedIndex] = undoStack.pop();
+        }
+    }
+    else if(currentState == states::added)
+    {
+        cout << "Add Undone!";
+        products[--numProducts] = undoStack.pop();
+    }
+    else
+    {
+        cout << "Nothing to undo";
+    }
+}
 void printProducts() {
     if (numProducts == 0) {
         cout << "No products available." << endl;
@@ -126,10 +189,8 @@ void printProducts() {
 
     cout << "Product List:" << endl;
     for (int i = 0; i < numProducts; i++) {
-        if (!products[i].isDeleted) {
             cout << "Name: " << products[i].name << ", ID: " << products[i].id
                 << ", Amount: " << products[i].amount << ", Price: " << products[i].price << endl;
-        }
     }
 }
 void commands()
@@ -140,6 +201,7 @@ void commands()
     cout << "EDIT - Edit a product\n";
     cout << "SELL - Sell product to customer\n";
     cout << "BUY - Buy a product from customer\n";
+    cout << "CTRL+Z - Undo your last action\n";
     cout << "PRINT - Print all products\n";
     cout << "CLEAR - Clear the screen\n";
     cout << "FIND - Find a product\n";
@@ -167,15 +229,18 @@ int main() {
             cout << "Enter product price: ";
             cin >> productPrice;
             addProduct(productName, productId, productAmount, productPrice);
+            currentState = states::added;
         }
         else if (command == "delete") {
             cout << "Enter product name: ";
             cin >> productName;
+            currentState = states::deleleted;
             deleteProduct(productName);
         }
         else if (command == "edit") {
             cout << "Enter product name: ";
             cin >> productName;
+            currentState = states::edited;
             editProduct(productName);
         }
         else if (command == "find")
@@ -206,13 +271,23 @@ int main() {
             buyProduct(name);
         }
         else if (command == "print")
+        {
             printProducts();
+        }
+        else if (command == "undo")
+        {
+            undoAction();
+        }
+        else if (command == "help")
+        {
+            commands();
+        }
+        else if (command == "clear" || command == "cls")
+        {
+            clearConsole();
+        }
         else if (command == "quit")
             break;
-        else if (command == "help")
-            commands();
-        else if (command == "clear" || "cls")
-            clearConsole();
         else
             cout << "Invalid command. Please try again." << endl;
     }
