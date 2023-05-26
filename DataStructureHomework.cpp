@@ -1,20 +1,17 @@
 #include <iostream>
 #include <string>
-#include <conio.h>
 #include <stack>
 
 using namespace std;
 
 const int MAX_PRODUCTS = 100;
-int lastEditedIndex = -1;
 
 
 enum states
 {
     added,
     deleleted,
-    edited,
-    idle
+    edited
 };
 states currentState;
 struct Product {
@@ -22,6 +19,9 @@ struct Product {
     int id;
     int amount;
     double price;
+
+    states state;
+    int index;
 };
 Product products[MAX_PRODUCTS];
 int numProducts = 0;
@@ -44,13 +44,12 @@ public:
             cout << "Stack is empty" << endl;
             return Product();
         }
-        return data[topIndex];
-        topIndex--;
+        return data[topIndex--];
     }
     Product top() const {
         if (topIndex == -1) {
             cout << "Stack is empty" << endl;
-            return { "", 0, 00, 0 };
+            return Product();
         }
         return data[topIndex];
     }
@@ -58,6 +57,7 @@ public:
         return topIndex == -1;
     }
 };
+Stack redoStack;
 Stack undoStack;
 
 int findProductIndex(const string& productName) {
@@ -79,6 +79,7 @@ void addProduct(const string& productName, int productId, int productAmount, dou
     newProduct.id = productId;
     newProduct.amount = productAmount;
     newProduct.price = productPrice;
+    newProduct.state = states::added;
     undoStack.push(newProduct);
     products[numProducts] = newProduct;
     numProducts++;
@@ -101,6 +102,7 @@ void deleteProduct(const string& productName) {
     }
 
     Product deletedProduct = products[index];
+    deletedProduct.state = states::deleleted;
     undoStack.push(deletedProduct);
     for (int i = index; i < numProducts - 1; i++) {
         products[i] = products[i + 1];
@@ -117,7 +119,8 @@ void editProduct(const string& productName) {
     }
 
     Product editedProduct = products[index];
-    lastEditedIndex = index;
+    editedProduct.index = index;
+    editedProduct.state = states::edited;
     undoStack.push(editedProduct);   
     cout << "Enter new product name: ";
     cin >> editedProduct.name;
@@ -159,27 +162,62 @@ void buyProduct(const string& name) {
 }
 void undoAction()
 {
-    if (currentState == states::deleleted)
+    if (undoStack.empty())
+        return;
+    Product undoProduct = undoStack.pop();
+    
+    if (undoProduct.state == states::deleleted)
     {
-        cout << "Deletion Undone!";
-        products[++numProducts] = undoStack.pop();
+        cout << "Deletion undone!\n";
+        undoProduct.state = states::added;
+        redoStack.push(undoProduct);
+        products[++numProducts] = undoProduct;
+        
     }
-    else if (currentState == states::edited)
+    else if (undoProduct.state == states::added)
     {
-        cout << "Edit Undone!";
-        if (lastEditedIndex >= 0 && lastEditedIndex < numProducts) {
-            products[lastEditedIndex] = undoStack.pop();
-        }
+        cout << "adding undone!\n";
+        undoProduct.state = states::deleleted;
+        redoStack.push(undoProduct);
+        --numProducts;
     }
-    else if(currentState == states::added)
+    else if (undoProduct.state == states::edited)
     {
-        cout << "Add Undone!";
-        products[--numProducts] = undoStack.pop();
+        cout << "editing undone!\n";
+        products[undoProduct.index] = undoProduct;
+        redoStack.push(undoProduct);
+    }else
+        cout << "nothing to be undone!\n";
+}
+void redoAction()
+{
+    if (redoStack.empty())
+        return;
+    Product undoProduct = redoStack.pop();
+
+    if (undoProduct.state == states::deleleted)
+    {
+        cout << "Deletion undone!\n";
+        undoProduct.state = states::added;
+        undoStack.push(undoProduct);
+        products[++numProducts] = undoProduct;
+
+    }
+    else if (undoProduct.state == states::added)
+    {
+        cout << "adding undone!\n";
+        undoProduct.state = states::deleleted;
+        undoStack.push(undoProduct);
+        --numProducts;
+    }
+    else if (undoProduct.state == states::edited)
+    {
+        cout << "editing undone!\n";
+        products[undoProduct.index] = undoProduct;
+        undoStack.push(undoProduct);
     }
     else
-    {
-        cout << "Nothing to undo";
-    }
+        cout << "nothing to be undone!\n";
 }
 void printProducts() {
     if (numProducts == 0) {
@@ -201,7 +239,8 @@ void commands()
     cout << "EDIT - Edit a product\n";
     cout << "SELL - Sell product to customer\n";
     cout << "BUY - Buy a product from customer\n";
-    cout << "CTRL+Z - Undo your last action\n";
+    cout << "Undo - Undo your last action\n";
+    cout << "Redo - Redo your last action\n";
     cout << "PRINT - Print all products\n";
     cout << "CLEAR - Clear the screen\n";
     cout << "FIND - Find a product\n";
@@ -277,6 +316,10 @@ int main() {
         else if (command == "undo")
         {
             undoAction();
+        }
+        else if (command == "redo")
+        {
+            redoAction();
         }
         else if (command == "help")
         {
