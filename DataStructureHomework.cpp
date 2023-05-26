@@ -92,6 +92,32 @@ void editProduct(const string& productName) {
     
 }
 
+void sellProduct(const string& name) 
+{
+    int index = findProductIndex(name);
+    if (index != -1) {
+        if (products[index].amount > 0) {
+            products[index].amount--;
+            cout << "Product sold: " << products[index].name << endl;
+        }
+        else {
+            cout << "Product out of stock" << endl;
+        }
+    }
+    else {
+        cout << "Product not found" << endl;
+    }
+}
+void buyProduct(const string& name) {
+    int index = findProductIndex(name);
+    if (index != -1) {
+        products[index].amount++;
+        cout << "Product bought: " << products[index].name << endl;
+    }
+    else {
+        cout << "Product not found" << endl;
+    }
+}
 void printProducts() {
     if (numProducts == 0) {
         cout << "No products available." << endl;
@@ -112,6 +138,8 @@ void commands()
     cout << "ADD - Add a product\n";
     cout << "DELETE - Delete a product\n";
     cout << "EDIT - Edit a product\n";
+    cout << "SELL - Sell product to customer\n";
+    cout << "BUY - Buy a product from customer\n";
     cout << "PRINT - Print all products\n";
     cout << "CLEAR - Clear the screen\n";
     cout << "FIND - Find a product\n";
@@ -164,6 +192,18 @@ int main() {
             {
                 cout << "Product not found!\n";
             }
+        }
+        else if (command == "sell")
+        {
+            cout << "Enter product name: ";
+            string name; cin >> name;
+            sellProduct(name);
+        }
+        else if (command == "buy")
+        {
+            cout << "Enter product name: ";
+            string name; cin >> name;
+            buyProduct(name);
         }
         else if (command == "print")
             printProducts();
